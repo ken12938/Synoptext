@@ -2,6 +2,8 @@ var express = require('express');
 var app = express();
 var Nexmo = require('nexmo');
 
+var junkWords = ["summarize", ];
+
 var nexmo = new Nexmo({
   apiKey: '2aec9001',
   apiSecret: '33373eccbd477bee',
@@ -15,11 +17,29 @@ app.get('/incoming-sms', (req, res) => {
   console.log(req.query);
 
   var msisdn = req.query.msisdn;
-  var text = req.query.text;
+  var text = req.query.text.toLowerCase();
 
   var textArray = text.split(' ');
+  var sentences;
+  var newArr = [];
 
-  nexmo.message.sendSms('Nexmo', msisdn, text);
+  for(var i = 0; i < textArray.length - 1; i++) {
+    if(textArray[i + 1].includes("sentence")) {
+      sentences = parseInt(textArray[i]);
+    }
+
+    //WORK IN PROGRESS
+  }
+
+  //var newtext = summarize(text);
+
+  nexmo.message.sendSms('12016441578', msisdn, text, (err, responseData) => {
+    if (err) {
+      console.log(err);
+    } else {
+      console.dir(responseData);
+    }
+  });
 
   res.sendStatus(200);
 });
