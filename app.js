@@ -20,6 +20,19 @@ var textapi = new AYLIENTextAPI({
     application_key: '2f1cbec3166847a1c0e78dc724b25290'
 });
 
+function removeTimeStamps(text) {
+  lineArray = text.split('\n');
+  newString = '';
+
+  for(var i = 0; i < lineArray.length; i++) {
+      if(!lineArray[i].includes('-->')) {
+          newString = newString.concat(lineArray[i] + '\n');
+      }
+  }
+
+  return newString;
+}
+
 app.get("/", function(req, res) {
     res.send("home");
 });
@@ -32,7 +45,7 @@ app.get('/incoming-sms', (req, res) => {
 
   var textArray = text.split(',');
   var sentences = parseInt(textArray[1].trim().split(' ')[0]);
-  var message = parseInt(textArray[0].trim());
+  var message = textArray[0].trim();
   let videoIdPath = "/search?part=snippet&maxResults=1&order=relevance&q="+encodeURIComponent(message)+"&type=video&videoCaption=closedCaption&relevanceLanguage=en&key="+api_key;
 
   request({
@@ -45,56 +58,53 @@ app.get('/incoming-sms', (req, res) => {
     var script = "youtube-dl --all-subs --skip-download https://www.youtube.com/watch?v="+vidId;
     var res = execSync(script);
 
-    var captionTrack;
+    let captionTrack = '';
 
     var files = fs.readdirSync('C:/Users/Kenny/Favorites/Documents/Nexmo Project/');
+
     for (var i in files) {
       if(path.extname(files[i]) === ".vtt") {
         fs.readFile(files[i], 'utf8', function(err, contents) {
-          captionTrack = contents;
+          captionTrack = removeTimeStamps(contents);
+          textapi.summarize({
+            title: 'Summary',
+            text: captionTrack,
+            sentences_number: sentences
+          }, function(error, response) {
+            if (error === null) {
+              var summary = '';
+              response.sentences.forEach(function(s) {
+                summary = summary.concat(s + '\n');
+              });
+              nexmo.message.sendSms('12016441642', msisdn, summary, (err, responseData) => {
+                if (err) {
+                  console.log(err);
+                } else {
+                  console.dir(responseData);
+                }
+              });
+            } else {
+              console.log('Reached here');
+              nexmo.message.sendSms('12016441642', msisdn, error, (err, responseData) => {
+                if (err) {
+                  console.log(err);
+                } else {
+                  console.dir(responseData);
+                }
+              });
+            }
+          });
         });
       }
     }
-    
-    execSync('del *.vtt');
 
     console.log(captionTrack);
     
-    /*textapi.summarize({
-      title: 'Summary',
-      text: captionTrack,
-      sentences_number: 2
-    }, function(error, response) {
-      if (error === null) {
-        var summary = '';
-
-        response.sentences.forEach(function(s) {
-          summary = summary.concat(s + '\n');
-        });
-
-        nexmo.message.sendSms('12016441578', msisdn, summary, (err, responseData) => {
-          if (err) {
-            console.log(err);
-          } else {
-            console.dir(responseData);
-          }
-        });
-      } else {
-        console.log('Reached here');
-        nexmo.message.sendSms('12016441578', msisdn, error, (err, responseData) => {
-          if (err) {
-            console.log(err);
-          } else {
-            console.dir(responseData);
-          }
-        });
-      }
-    });*/
+    execSync('del *.vtt');
   }, console.log);
-
   res.sendStatus(200);
 });
 
 app.listen(3000, function () {
-  console.log('Example app listening on port 3000!')
+  console.log('Example app listening on port 3000!');
 });
